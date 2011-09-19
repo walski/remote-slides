@@ -1,0 +1,156 @@
+<html>
+<head>
+  <title>Remote Slides</title>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js" type="text/javascript"></script>
+  <script src="http://rastajs.errorjs.com/rasta.min.js" type="text/javascript"></script> 
+  
+  <style type="text/css">
+    #canvas {
+    	position:absolute;
+    	top: 50%;
+    	left: 50%;
+    	width:1024px;
+    	height:768px;
+    	margin-top: -384px; /*set to a negative number 1/2 of your height*/
+    	margin-left: -512px; /*set to a negative number 1/2 of your width*/
+    	border: 1px solid #ccc;
+    	background-color: #f3f3f3;
+    }
+    
+    .controller #canvas {
+      left: 20px;
+      margin-left: 0px;
+      top: 51%;
+    }
+    
+    #preview,#review {
+      right: 10px;
+      height: 384px;
+      width: 512px;
+      position:absolute;
+      border: 1px solid #ccc;
+      display: none;
+    }
+    
+    .controller #preview, .controller #review {
+      display: block;
+    }
+    
+    #preview {
+      top: 10px;
+    }
+    
+    #review {
+      top: 404px;
+    }
+    
+    #controls {
+      display: none;
+    }
+    
+    #controls span {
+      font-weight: bold;
+    }
+    
+    .preloader {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      left: -1px;
+      top: 0px;
+    }
+    
+    body {
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div id="slides">
+    <% images.each do |image| %>
+      <div class="slide" data-url="#{image}"></div>
+    <% end %>
+  </div>
+  <div id="canvas"></div>
+  <div id="controls">
+    <div>
+      Slide <span id="current-slide"></span> / <span id="absolute-slides"></span>
+    </div>
+  </div>
+  <img id="preview"/>
+  <img id="review"/>
+  
+  <script type="text/javascript">
+    var slides = [];
+    var currentSlide = 0;
+    var controlMode = window.location.hash === '#c';
+    var maxSlides = 0;
+    var storeName = 'kuno_slide_no';
+    
+    var updateSlide = function() {
+      url = $(slides[currentSlide]).data('url');
+      $('#canvas').css('background-image', "url('" + url + "')");
+      if (currentSlide < maxSlides - 1) {
+        $('#preview').attr('src', $(slides[currentSlide + 1]).data('url'));
+      }
+      if (currentSlide > 0) {
+        $('#review').attr('src', $(slides[currentSlide -1]).data('url'));
+      }
+      $('#current-slide').text(currentSlide + 1);
+    }
+    
+    var adjustSlide = function(delta) {
+      currentSlide += delta;
+      if (currentSlide < 0) {
+        currentSlide = 0;
+      }
+      if (currentSlide >= maxSlides) {
+        currentSlide = maxSlides - 1;
+      }
+      updateSlide();
+    }
+    
+    var pullSlide = function() {
+      Rasta.get(storeName, function(val){
+        currentSlide = parseInt(val, 10);
+        updateSlide();
+        setTimeout(pullSlide, 500);
+      });
+    };
+    
+    var pushSlide = function() {
+      Rasta.set(storeName, '' + currentSlide, function(){})
+      setTimeout(pushSlide, 500);
+    }
+    
+    $(document).ready(function() {
+      slides = $('.slide');
+      slides.each(function() {
+        $('body').append('<img class="preloader" src="' + $(this).data('url') + '"/>');
+      });
+      
+      if (controlMode) {
+        $('body').addClass('controller');
+        $('#controls').show();
+        maxSlides = slides.length;
+        $('#absolute-slides').text(maxSlides);
+        
+        $(document).keydown(function(e){
+          if (e.keyCode == 37) { 
+            adjustSlide(-1);
+            return false;
+          } else if (e.keyCode == 39) {
+            adjustSlide(1);
+            return false;
+          }
+          pushSlide();
+        });
+      } else {
+        pullSlide();
+      }
+      
+      updateSlide();
+    });
+  </script>
+</body>
+</html>
